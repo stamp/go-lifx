@@ -1,8 +1,11 @@
 package client
 
 import (
-	proto "github.com/bjeanes/go-lifx/protocol"
+	"reflect"
 	"time"
+
+	log "github.com/cihub/seelog"
+	proto "github.com/stamp/go-lifx/protocol"
 )
 
 type connection interface {
@@ -10,16 +13,16 @@ type connection interface {
 	WriteMessage(proto.Message) error
 }
 
-type client struct {
+type Client struct {
 	connected  bool
 	connection connection
 	Messages   <-chan proto.Message
 	Errors     <-chan error
-	Lights     *lightCollection
+	Lights     *LightCollection
 }
 
-func New() *client {
-	c := &client{}
+func New() *Client {
+	c := &Client{}
 	if conn, err := proto.Connect(); err == nil {
 		c.connection = conn
 		c.connected = true
@@ -29,12 +32,35 @@ func New() *client {
 
 	c.Messages = messages
 	c.Errors = errors
-	c.Lights = &lightCollection{client: c}
+	c.Lights = &LightCollection{
+		Client:  c,
+		lights:  make(map[string]*Light, 0),
+		Changes: make(chan LampCollectionEvent, 0),
+	}
+
+	// Listen worker
+	go func() {
+		for {
+			select {
+			case msg := <-c.Messages:
+				switch payload := msg.Payload.(type) {
+				case *proto.DeviceStatePanGateway:
+					// TODO: record gateway devices
+					log.Warn(reflect.TypeOf(msg.Payload))
+				case *proto.LightState:
+					c.Lights.Register(msg.From, msg.Header, payload)
+				default:
+					log.Warn(reflect.TypeOf(msg.Payload))
+					// nada
+				}
+			}
+		}
+	}()
 
 	return c
 }
 
-func (c *client) SendMessage(payload proto.Payload) (data []byte, error error) {
+func (c *Client) SendMessage(payload proto.Payload) (data []byte, error error) {
 	msg := proto.Message{}
 	msg.Payload = payload
 
@@ -42,8 +68,8 @@ func (c *client) SendMessage(payload proto.Payload) (data []byte, error error) {
 	return data, nil
 }
 
-func (c *client) Discover() <-chan *light {
-	ch := make(chan *light)
+func (c *Client) Discover() <-chan *Light {
+	ch := make(chan *Light)
 
 	go func() {
 		timeout := time.After(5 * time.Second)
@@ -54,15 +80,8 @@ func (c *client) Discover() <-chan *light {
 			select {
 			case <-timeout:
 				close(ch)
-			case msg := <-c.Messages:
-				switch payload := msg.Payload.(type) {
-				case *proto.DeviceStatePanGateway:
-					// TODO: record gateway devices
-				case *proto.LightState:
-					ch <- c.Lights.Register(payload)
-				default:
-					// nada
-				}
+				return
+
 			}
 		}
 	}()

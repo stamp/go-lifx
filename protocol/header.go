@@ -1,5 +1,7 @@
 package protocol
 
+import "encoding/hex"
+
 type (
 	bitfield uint16
 
@@ -12,8 +14,10 @@ type (
 		// 2 bit   = <reserved>
 		Bitfield1 bitfield
 
-		_      uint32 // <reserved>
+		//_ uint32 // <reserved>
+		_      uint16 // <reserved>
 		Target [8]byte
+		_      uint16 // <reserved>
 		Site   Site
 
 		// 1 bit = acknowledge bool
@@ -28,7 +32,7 @@ type (
 
 	Header struct {
 		Version     uint16
-		Target      [8]byte
+		Target      string
 		Site        Site
 		AtTime      uint64
 		Addressable bool
@@ -42,7 +46,7 @@ func (h *header) version() uint16 { return 0xfff & uint16(h.Bitfield1) }
 func (raw *header) ToExpandedHeader() *Header {
 	h := new(Header)
 	h.AtTime = raw.AtTime
-	h.Target = raw.Target
+	h.Target = string(hex.EncodeToString(raw.Target[:]))
 	h.Site = raw.Site
 	h.Version = raw.version()                        // top 12 bits
 	h.Addressable = 0x1000&uint16(raw.Bitfield1) > 0 // next bit
@@ -61,7 +65,11 @@ func btou(b bool) uint16 {
 
 func (h *Header) ToRawHeader() header {
 	raw := new(header)
-	raw.Target = h.Target
+	tmp, _ := hex.DecodeString(h.Target)
+
+	for key, val := range tmp {
+		raw.Target[key] = tmp[val]
+	}
 	raw.Site = h.Site
 	raw.AtTime = h.AtTime
 

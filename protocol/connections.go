@@ -6,9 +6,9 @@ import (
 )
 
 const (
-	broadcastPort   = 56700
-	peerPort        = 56750
-	defaultReadSize = 128
+	BroadcastPort   = 56700
+	PeerPort        = 56750
+	DefaultReadSize = 128
 )
 
 type Connection struct {
@@ -111,7 +111,7 @@ func (conn *Connection) setupSockets() (err error) {
 
 	peer, err := net.ListenMulticastUDP("udp4", nil, &net.UDPAddr{
 		IP:   ip,
-		Port: peerPort,
+		Port: PeerPort,
 	})
 	if err != nil {
 		return
@@ -119,7 +119,7 @@ func (conn *Connection) setupSockets() (err error) {
 
 	broadcast, err := net.ListenMulticastUDP("udp4", nil, &net.UDPAddr{
 		IP:   ip,
-		Port: broadcastPort,
+		Port: BroadcastPort,
 	})
 	if err != nil {
 		return
@@ -127,7 +127,7 @@ func (conn *Connection) setupSockets() (err error) {
 
 	write, err := net.DialUDP("udp4", nil, &net.UDPAddr{
 		IP:   ip,
-		Port: broadcastPort,
+		Port: BroadcastPort,
 	})
 	if err != nil {
 		return
@@ -147,7 +147,7 @@ func (conn *Connection) setupSockets() (err error) {
 // with the LastError() method on the connection.
 
 func (conn *Connection) Read(socket *net.UDPConn) {
-	b := make([]byte, defaultReadSize)
+	b := make([]byte, DefaultReadSize)
 
 	for {
 		n, addr, err := socket.ReadFrom(b)

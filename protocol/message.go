@@ -5,6 +5,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
+
+	log "github.com/cihub/seelog"
 )
 
 const compatibleVersion = 1024
@@ -12,6 +15,7 @@ const headerSize = 36
 
 type Message struct {
 	*Header
+	From net.Addr
 	Payload
 }
 
@@ -97,13 +101,24 @@ func NewMessageDecoder(datagrams <-chan Datagram) (<-chan Message, <-chan error)
 	go func() {
 		for datagram := range datagrams {
 			msg, err := Decode(datagram.Data)
+			//log.Warn("meddelande")
+
+			msg.From = datagram.From
 
 			if err != nil {
-				errs <- &BadDatagram{datagram, err}
+				select {
+				case errs <- &BadDatagram{datagram, err}:
+				default:
+					log.Error(err)
+				}
 				continue
 			}
 
-			msgs <- msg
+			select {
+			case msgs <- msg:
+			default:
+				log.Error("Lost message, none is listening")
+			}
 		}
 
 		close(msgs)
