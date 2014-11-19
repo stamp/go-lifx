@@ -97,16 +97,16 @@ func (l Light) TurnOn() {
 }
 
 // Note that h is in [0..360] and s,v in [0..1]
-func (l Light) SetState(h, s, v float64) {
+func (l Light) SetState(h, s, v float64, duration uint32, kelvin uint32) {
 
 	l.Client.SendMessage(proto.LightSet{
 		Color: proto.Hsbk{
 			Hue:        proto.Degrees(h / 360 * 65535), // 0-65535 scaled to 0-100%
 			Saturation: proto.Percent(s * 65535),       // 0-65535 scaled to 0-100%
 			Brightness: proto.Percent(v * 65535),       // 0-65535 scaled to 0-100%
-			Kelvin:     3500,                           // absolute 2400-10000
+			Kelvin:     proto.Kelvin(kelvin),           // absolute 2400-10000
 		},
-		Duration: DEFAULT_KELVIN,
+		Duration: duration,
 	})
 
 }
