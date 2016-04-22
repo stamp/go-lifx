@@ -1,7 +1,6 @@
 package client
 
 import (
-	"reflect"
 	"time"
 
 	log "github.com/cihub/seelog"
@@ -46,11 +45,12 @@ func New() *Client {
 				switch payload := msg.Payload.(type) {
 				case *proto.DeviceStatePanGateway:
 					// TODO: record gateway devices
-					log.Warn(reflect.TypeOf(msg.Payload))
+					//log.Warn("Received: ", reflect.TypeOf(msg.Payload))
 				case *proto.LightState:
+					//log.Warn("Register: ", reflect.TypeOf(msg.Payload))
 					c.Lights.Register(msg.From, msg.Header, payload)
 				default:
-					log.Warn(reflect.TypeOf(msg.Payload))
+					//log.Warn("Received: ", reflect.TypeOf(msg.Payload))
 					// nada
 				}
 			}
@@ -61,6 +61,7 @@ func New() *Client {
 }
 
 func (c *Client) SendMessage(payload proto.Payload) (data []byte, error error) {
+	log.Debugf("SendMessage(%#v)", payload)
 	msg := proto.Message{}
 	msg.Payload = payload
 

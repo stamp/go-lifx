@@ -76,7 +76,8 @@ func TestDecodeDeviceStatePanGatewayService1(t *T) {
 		t.Error("adressable field should be true")
 	}
 
-	expectedTargetID := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0xf9, 0x14, 0x00, 0x00}
+	//expectedTargetID := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0xf9, 0x14, 0x00, 0x00}
+	expectedTargetID := "d073d500f9140000"
 	if msg.Header.Target != expectedTargetID {
 		t.Error("Target incorrect")
 	}
@@ -133,9 +134,10 @@ func TestDecodeDeviceStatePanGatewayService2(t *T) {
 		t.Error("adressable field should be true")
 	}
 
-	expectedTargetID := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0xf9, 0x14, 0x00, 0x00}
+	//expectedTargetID := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0xf9, 0x14, 0x00, 0x00}
+	expectedTargetID := "d073d500f9140000"
 	if msg.Header.Target != expectedTargetID {
-		t.Error("Target incorrect")
+		t.Errorf("Target incorrect, expected=%s, actual=%s", expectedTargetID, msg.Header.Target)
 	}
 
 	expectedSiteID := [6]byte{0x4c, 0x49, 0x46, 0x58, 0x56, 0x32}
@@ -202,7 +204,8 @@ func TestDecodeLightState(t *T) {
 		t.Error("adressable field should be true")
 	}
 
-	expectedTargetID := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0xf9, 0x14, 0x00, 0x00}
+	//expectedTargetID := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0xf9, 0x14, 0x00, 0x00}
+	expectedTargetID := "d073d500f9140000"
 	if msg.Header.Target != expectedTargetID {
 		t.Error("Target incorrect")
 	}
@@ -347,7 +350,8 @@ func TestDecodeDeviceStatePower(t *T) {
 		t.Error("adressable field should be true")
 	}
 
-	expectedTargetID := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0xf9, 0x14, 0x00, 0x00}
+	//expectedTargetID := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0xf9, 0x14, 0x00, 0x00}
+	expectedTargetID := "d073d500f9140000"
 	if msg.Header.Target != expectedTargetID {
 		t.Error("Target incorrect")
 	}
@@ -397,7 +401,8 @@ func TestDecodeDeviceStateTime(t *T) {
 
 func TestMarshalBinary(t *T) {
 	msg := Message{}
-	target := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0x49, 0x14, 0x00, 0x00}
+	targetHex := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0x49, 0x14, 0x00, 0x00}
+	target := "d073d50049140000"
 	site := [6]byte{0x4c, 0x49, 0x46, 0x58, 0x56, 0x32}
 	header := Header{
 		Version: 1024,
@@ -433,7 +438,7 @@ func TestMarshalBinary(t *T) {
 		t.Error(fmt.Sprintf("Expected 0x04, but got 0x%s", hex.EncodeToString(data[3:4])))
 	}
 
-	if !bytes.Equal(data[8:16], target[0:8]) {
+	if !bytes.Equal(data[8:16], targetHex[0:8]) {
 		t.Error("Target incorrect")
 	}
 
@@ -448,7 +453,9 @@ func TestMarshalBinary(t *T) {
 
 func TestTaggedMarshalBinary(t *T) {
 	msg := Message{}
-	target := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0x49, 0x14, 0x00, 0x00}
+	targetHex := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0x49, 0x14, 0x00, 0x00}
+	target := "d073d50049140000"
+
 	site := [6]byte{0x4c, 0x49, 0x46, 0x58, 0x56, 0x32}
 	header := Header{
 		Version: 1024,
@@ -484,7 +491,7 @@ func TestTaggedMarshalBinary(t *T) {
 		t.Error(fmt.Sprintf("Expected 0x24, but got 0x%s", hex.EncodeToString(data[3:4])))
 	}
 
-	if !bytes.Equal(data[8:16], target[0:8]) {
+	if !bytes.Equal(data[8:16], targetHex[0:8]) {
 		t.Error("Target incorrect")
 	}
 
@@ -499,7 +506,8 @@ func TestTaggedMarshalBinary(t *T) {
 
 func TestDeviceSetPowerOnMarshalBinary(t *T) {
 	msg := Message{}
-	target := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0x49, 0x14, 0x00, 0x00}
+	targetHex := [8]byte{0xd0, 0x73, 0xd5, 0x00, 0x49, 0x14, 0x00, 0x00}
+	target := "d073d50049140000"
 	site := [6]byte{0x4c, 0x49, 0x46, 0x58, 0x56, 0x32}
 	header := Header{
 		Version: 1024,
@@ -535,7 +543,7 @@ func TestDeviceSetPowerOnMarshalBinary(t *T) {
 		t.Error(fmt.Sprintf("Expected 0x34, but got 0x%s", hex.EncodeToString(data[3:4])))
 	}
 
-	if !bytes.Equal(data[8:16], target[0:8]) {
+	if !bytes.Equal(data[8:16], targetHex[0:8]) {
 		t.Error("Target incorrect")
 	}
 

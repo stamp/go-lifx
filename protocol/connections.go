@@ -73,12 +73,22 @@ func (conn *Connection) WriteMessage(msg Message) (err error) {
 		Acknowledge: false,
 	}
 
+	if msg.Header != nil {
+		header.Target = msg.Header.Target
+		header.Tagged = false
+	}
+
 	msg.Header = &header
 
 	data, err := msg.MarshalBinary()
 	if err != nil {
 		return err
 	}
+
+	//log.Tracef("SendMessage.header=%#v", msg.Header)
+	//log.Tracef("SendMessage.msg=%#v", msg)
+	//log.Tracef("SendMessage.length=%d", len(data))
+
 	_, err = conn.write(data)
 	if err != nil {
 		return err

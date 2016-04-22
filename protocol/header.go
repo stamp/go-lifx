@@ -15,9 +15,11 @@ type (
 		Bitfield1 bitfield
 
 		//_ uint32 // <reserved>
-		_      uint16 // <reserved>
+		//_      uint16 // <reserved>
+		//_      uint8  // <reserved>
+		//_      uint8
+		Source [4]byte
 		Target [8]byte
-		_      uint16 // <reserved>
 		Site   Site
 
 		// 1 bit = acknowledge bool
@@ -47,11 +49,13 @@ func (raw *header) ToExpandedHeader() *Header {
 	h := new(Header)
 	h.AtTime = raw.AtTime
 	h.Target = string(hex.EncodeToString(raw.Target[:]))
+	//h.Target = raw.Target
 	h.Site = raw.Site
 	h.Version = raw.version()                        // top 12 bits
 	h.Addressable = 0x1000&uint16(raw.Bitfield1) > 0 // next bit
 	h.Tagged = 0x2000&uint16(raw.Bitfield1) > 0      // next bit
 	h.Acknowledge = 0x1&uint16(raw.Bitfield2) > 0    // top bit
+
 	return h
 }
 
@@ -65,10 +69,13 @@ func btou(b bool) uint16 {
 
 func (h *Header) ToRawHeader() header {
 	raw := new(header)
-	tmp, _ := hex.DecodeString(h.Target)
 
+	tmp, _ := hex.DecodeString(h.Target)
 	for key, val := range tmp {
-		raw.Target[key] = tmp[val]
+		if key >= len(raw.Target) {
+			break
+		}
+		raw.Target[key] = val
 	}
 	raw.Site = h.Site
 	raw.AtTime = h.AtTime

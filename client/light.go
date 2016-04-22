@@ -6,6 +6,8 @@ import (
 
 	"fmt"
 
+	log "github.com/cihub/seelog"
+
 	proto "github.com/stamp/go-lifx/protocol"
 )
 
@@ -30,23 +32,36 @@ type LightCollection struct {
 
 func (lc *LightCollection) Register(from net.Addr, header *proto.Header, state *proto.LightState) *Light {
 
-	if existing, ok := lc.lights[header.Target]; !ok {
+	id := header.Target
+	//log.Debugf("Register call for %s (%s) in collection (%d)", id, header.Target, len(lc.lights))
+
+	if existing, ok := lc.lights[id]; !ok {
+		log.Infof("Adding light: %s", from.String())
 		light := &Light{Client: lc.Client}
 		light.UpdateFromState(state)
-		light.ip = from
-		light.id = header.Target
-		lc.lights[header.Target] = light
+		light.Ip = from
+		light.id = id
+		lc.lights[id] = light
 
 		// Try to notify that a new lamp was added to the collection
 		select {
 		case lc.Changes <- LampCollectionEvent{LampAdded, light}:
 		default:
+			log.Warnf("Lost light event: %s", from.String())
 		}
 	} else {
-		existing.ip = from
+		//log.Infof("Updating ip: %s", from.String())
+
+		select {
+		case lc.Changes <- LampCollectionEvent{LampUpdated, existing}:
+		default:
+			log.Warnf("Lost light event: %s", from.String())
+		}
+
+		existing.Ip = from
 	}
 
-	return lc.lights[header.Target]
+	return lc.lights[id]
 }
 
 func (lc *LightCollection) Count() int {
@@ -59,6 +74,7 @@ func (lc *LightCollection) All() map[string]*Light {
 
 func (lc *LightCollection) GetById(id string) (*Light, error) {
 	if existing, ok := lc.lights[id]; ok {
+		//log.Debugf("GetById(%s) returned %s", id, existing.Id())
 		return existing, nil
 	}
 
@@ -72,7 +88,7 @@ type Light struct {
 	Datagrams chan proto.Datagram
 	connected bool
 	id        string
-	ip        net.Addr
+	Ip        net.Addr
 	conn      *net.UDPConn
 }
 
@@ -89,17 +105,17 @@ func (l *Light) UpdateFromState(state *proto.LightState) {
 }
 
 func (l Light) TurnOff() {
-	l.Client.SendMessage(proto.DeviceSetPower{Level: 0})
+	l.SendMessage(proto.DeviceSetPower{Level: 0})
 }
 
 func (l Light) TurnOn() {
-	l.Client.SendMessage(proto.DeviceSetPower{Level: 1})
+	l.SendMessage(proto.DeviceSetPower{Level: 1})
 }
 
 // Note that h is in [0..360] and s,v in [0..1]
 func (l Light) SetState(h, s, v float64, duration uint32, kelvin uint32) {
 
-	l.Client.SendMessage(proto.LightSet{
+	l.SendMessage(proto.LightSet{
 		Color: proto.Hsbk{
 			Hue:        proto.Degrees(h / 360 * 65535), // 0-65535 scaled to 0-100%
 			Saturation: proto.Percent(s * 65535),       // 0-65535 scaled to 0-100%
@@ -140,7 +156,7 @@ func (l Light) Connect() error {
 
 	var err error
 	l.conn, err = net.ListenMulticastUDP("udp4", nil, &net.UDPAddr{
-		IP:   net.ParseIP(l.ip.String()),
+		IP:   net.ParseIP(l.Ip.String()),
 		Port: proto.PeerPort,
 	})
 	if err != nil {
@@ -152,4 +168,21 @@ func (l Light) Connect() error {
 	})
 
 	return err
+}
+
+func (l *Light) SendMessage(payload proto.Payload) (data []byte, error error) {
+	//log.Debugf("(%p).SendMessage(%#v) (%s)", l, payload, l.Id())
+
+	msg := proto.Message{
+		Header: &proto.Header{
+			Target: l.Id(),
+		},
+		Payload: payload,
+	}
+
+	//log.Debugf("(%p).SendMessage(%#v) msg.Target=%v -> %v", l, payload, "asd", l.id)
+	//log.Debugf("SendMessage(%#v)", msg.Header)
+
+	l.connection.WriteMessage(msg)
+	return data, nil
 }

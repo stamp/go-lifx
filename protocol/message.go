@@ -26,6 +26,7 @@ func (msg *Message) UnmarshalBinary(data []byte) error {
 	err := binary.Read(reader, binary.LittleEndian, &msgHeader)
 
 	if msgHeader.Size != uint16(len(data)) {
+		log.Debugf("Invalid message (wrong size, is %d should be %d): %#v", uint16(len(data)), msgHeader.Size, msgHeader)
 		// TODO: figure out if this is actually a problem or just ignoreable padding/noise at the end of the datagram?
 		return errors.New(fmt.Sprintf("Incorrect message size (data: %d, header: %d)", len(data), msgHeader.Size))
 	}
