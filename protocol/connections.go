@@ -3,6 +3,7 @@ package protocol
 import (
 	"net"
 	"runtime"
+	"time"
 )
 
 const (
@@ -89,6 +90,11 @@ func (conn *Connection) WriteMessage(msg Message) (err error) {
 	//log.Tracef("SendMessage.msg=%#v", msg)
 	//log.Tracef("SendMessage.length=%d", len(data))
 
+	_, err = conn.write(data)
+	if err != nil {
+		return err
+	}
+	<-time.After(time.Millisecond)
 	_, err = conn.write(data)
 	if err != nil {
 		return err
