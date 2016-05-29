@@ -135,6 +135,7 @@ func (conn *Connection) setupSockets() (err error) {
 		return
 	}
 
+	ip = net.IPv4(255, 255, 255, 255)
 	write, err := net.DialUDP("udp4", nil, &net.UDPAddr{
 		IP:   ip,
 		Port: BroadcastPort,

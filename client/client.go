@@ -20,9 +20,11 @@ type Client struct {
 	Lights     *LightCollection
 }
 
-func New() *Client {
+func New() (*Client, error) {
 	c := &Client{}
-	if conn, err := proto.Connect(); err == nil {
+	if conn, err := proto.Connect(); err != nil {
+		return nil, err
+	} else {
 		c.connection = conn
 		c.connected = true
 	}
@@ -57,7 +59,7 @@ func New() *Client {
 		}
 	}()
 
-	return c
+	return c, nil
 }
 
 func (c *Client) SendMessage(payload proto.Payload) (data []byte, error error) {
