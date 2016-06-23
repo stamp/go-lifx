@@ -21,8 +21,12 @@ type Client struct {
 }
 
 func New() (*Client, error) {
+	return NewWithBroadcastAddress("")
+}
+
+func NewWithBroadcastAddress(broadcastAddress string) (*Client, error) {
 	c := &Client{}
-	if conn, err := proto.Connect(); err != nil {
+	if conn, err := proto.Connect(broadcastAddress); err != nil {
 		return nil, err
 	} else {
 		c.connection = conn

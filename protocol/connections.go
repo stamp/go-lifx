@@ -106,7 +106,7 @@ func (conn *Connection) write(data []byte) (length int, err error) {
 	return conn.sockets.write.Write(data)
 }
 
-func (conn *Connection) setupSockets() (err error) {
+func (conn *Connection) setupSockets(broadcastAddress string) (err error) {
 	// NOTE(bo): On the IP address used for send and receive connections.
 	//
 	// Go only sets SO_REUSEADDR and SO_REUSEPORT when using a Multicast
@@ -141,7 +141,11 @@ func (conn *Connection) setupSockets() (err error) {
 		return
 	}
 
-	ip = net.IPv4(255, 255, 255, 255)
+	if broadcastAddress == "" {
+		ip = net.IPv4(255, 255, 255, 255)
+	} else {
+		ip = net.ParseIP(broadcastAddress)
+	}
 	write, err := net.DialUDP("udp4", nil, &net.UDPAddr{
 		IP:   ip,
 		Port: BroadcastPort,
@@ -179,12 +183,12 @@ func (conn *Connection) Read(socket *net.UDPConn) {
 	}
 }
 
-func Connect() (*Connection, error) {
+func Connect(broadcastAddress string) (*Connection, error) {
 	conn := &Connection{
 		Datagrams: make(chan Datagram),
 	}
 
-	err := conn.setupSockets()
+	err := conn.setupSockets(broadcastAddress)
 	if err == nil {
 		go conn.Read(conn.sockets.broadcast)
 		go conn.Read(conn.sockets.peer)
