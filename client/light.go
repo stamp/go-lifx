@@ -3,6 +3,7 @@ package client
 import (
 	"net"
 	"runtime"
+	"sync"
 
 	"fmt"
 
@@ -58,7 +59,9 @@ func (lc *LightCollection) Register(from net.Addr, header *proto.Header, state *
 			log.Warnf("Lost light event: %s", from.String())
 		}
 
+		existing.Lock()
 		existing.Ip = from
+		existing.Unlock()
 	}
 
 	return lc.lights[id]
@@ -90,17 +93,25 @@ type Light struct {
 	id        string
 	Ip        net.Addr
 	conn      *net.UDPConn
+
+	sync.RWMutex
 }
 
 func (l *Light) Label() string {
+	l.RLock()
+	defer l.RUnlock()
 	return l.state.Label.String()
 }
 
 func (l *Light) Id() string {
+	l.RLock()
+	defer l.RUnlock()
 	return l.id
 }
 
 func (l *Light) UpdateFromState(state *proto.LightState) {
+	l.Lock()
+	defer l.Unlock()
 	l.state = state
 }
 
@@ -114,7 +125,6 @@ func (l Light) TurnOn() {
 
 // Note that h is in [0..360] and s,v in [0..1]
 func (l Light) SetState(h, s, v float64, duration uint32, kelvin uint32) {
-
 	l.SendMessage(proto.LightSet{
 		Color: proto.Hsbk{
 			Hue:        proto.Degrees(h / 360 * 65535), // 0-65535 scaled to 0-100%
@@ -128,6 +138,8 @@ func (l Light) SetState(h, s, v float64, duration uint32, kelvin uint32) {
 }
 
 func (l Light) IsConnected() bool {
+	l.Lock()
+	defer l.Unlock()
 	return l.connected
 }
 
@@ -136,23 +148,34 @@ func (l Light) Close() (err error) {
 		return
 	}
 
+	l.RLock()
 	err = l.conn.Close()
+	l.RUnlock()
 	if err != nil {
 		return
 	}
 
+	l.Lock()
+	defer l.Unlock()
 	l.connected = false
 	return
 }
 
 func (l Light) Listen() (<-chan proto.Message, <-chan error) {
+	l.Lock()
 	l.Datagrams = make(chan proto.Datagram)
+	l.Unlock()
+
+	l.RLock()
 	msgs, errs := proto.NewMessageDecoder(l.Datagrams)
+	l.RUnlock()
 	return msgs, errs
 }
 
 func (l Light) Connect() error {
+	l.Lock()
 	l.Datagrams = make(chan proto.Datagram)
+	l.Unlock()
 
 	var err error
 	l.conn, err = net.ListenMulticastUDP("udp4", nil, &net.UDPAddr{
@@ -173,6 +196,7 @@ func (l Light) Connect() error {
 func (l *Light) SendMessage(payload proto.Payload) (data []byte, error error) {
 	//log.Debugf("(%p).SendMessage(%#v) (%s)", l, payload, l.Id())
 
+	l.RLock()
 	msg := proto.Message{
 		Header: &proto.Header{
 			Target: l.Id(),
@@ -184,5 +208,6 @@ func (l *Light) SendMessage(payload proto.Payload) (data []byte, error error) {
 	//log.Debugf("SendMessage(%#v)", msg.Header)
 
 	l.connection.WriteMessage(msg)
+	l.RUnlock()
 	return data, nil
 }

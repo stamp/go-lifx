@@ -3,6 +3,7 @@ package protocol
 import (
 	"net"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -19,6 +20,8 @@ type Connection struct {
 	sockets   struct {
 		broadcast, peer, write *net.UDPConn
 	}
+
+	sync.RWMutex
 }
 
 type Datagram struct {
@@ -27,14 +30,23 @@ type Datagram struct {
 }
 
 func (conn Connection) LastError() error {
+	conn.RLock()
+	defer conn.RUnlock()
+
 	return conn.lastErr
 }
 
 func (conn Connection) IsError() bool {
+	conn.RLock()
+	defer conn.RUnlock()
+
 	return conn.LastError() != nil
 }
 
 func (conn Connection) IsConnected() bool {
+	conn.RLock()
+	defer conn.RUnlock()
+
 	return conn.connected
 }
 
@@ -54,12 +66,18 @@ func (conn Connection) Close() (err error) {
 
 	close(conn.Datagrams)
 
+	conn.Lock()
 	conn.connected = false
+	conn.Unlock()
+
 	return
 }
 
 func (conn *Connection) Listen() (<-chan Message, <-chan error) {
+	conn.Lock()
 	conn.Datagrams = make(chan Datagram)
+	conn.Unlock()
+
 	msgs, errs := NewMessageDecoder(conn.Datagrams)
 	return msgs, errs
 }
@@ -103,6 +121,9 @@ func (conn *Connection) WriteMessage(msg Message) (err error) {
 }
 
 func (conn *Connection) write(data []byte) (length int, err error) {
+	conn.RLock()
+	defer conn.RUnlock()
+
 	return conn.sockets.write.Write(data)
 }
 
@@ -154,9 +175,11 @@ func (conn *Connection) setupSockets(broadcastAddress string) (err error) {
 		return
 	}
 
+	conn.Lock()
 	conn.sockets.peer = peer
 	conn.sockets.broadcast = broadcast
 	conn.sockets.write = write
+	conn.Unlock()
 
 	return
 }
@@ -172,7 +195,10 @@ func (conn *Connection) Read(socket *net.UDPConn) {
 
 	for {
 		n, addr, err := socket.ReadFrom(b)
+
+		conn.Lock()
 		conn.lastErr = err
+		conn.Unlock()
 
 		if conn.IsError() {
 			close(conn.Datagrams)
@@ -190,8 +216,10 @@ func Connect(broadcastAddress string) (*Connection, error) {
 
 	err := conn.setupSockets(broadcastAddress)
 	if err == nil {
+		conn.RLock()
 		go conn.Read(conn.sockets.broadcast)
 		go conn.Read(conn.sockets.peer)
+		conn.RUnlock()
 	}
 
 	runtime.SetFinalizer(conn, func(c *Connection) {
